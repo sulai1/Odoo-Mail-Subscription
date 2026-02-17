@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ============================================ -->
+    <!-- Bulk Actions for Opted-Out Users List        -->
+    <!-- ============================================ -->
+    
+    <record id="view_my_mail_template_opted_out_bulk_tree" model="ir.ui.view">
+        <field name="name">mail.template.opted_out.bulk.tree</field>
+        <field name="model">res.users</field>
+        <field name="arch" type="xml">
+            <list multi_edit="True">
+                <field name="name"/>
+                <field name="email"/>
+                <field name="company_id"/>
+                <field name="write_date"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- ============================================ -->
+    <!-- Server Action: Bulk Opt-In Selected Users    -->
+    <!-- ============================================ -->
+    
+    <record id="action_my_mail_bulk_opt_in" model="ir.actions.server">
+        <field name="name">Opt-In Selected Users</field>
+        <field name="model_id" ref="base.model_res_users"/>
+        <field name="binding_model_id" ref="base.model_res_users"/>
+        <field name="binding_type">action</field>
+        <field name="state">code</field>
+        <field name="code"><![CDATA[
+if records and env.context.get('active_template_id'):
+    template = env['mail.template'].browse(env.context['active_template_id'])
+    template.with_context(subscription_action_source='template_side')._bulk_opt_in(records.ids)
+]]></field>
+    </record>
+
+    <record id="action_my_mail_bulk_opt_out" model="ir.actions.server">
+        <field name="name">Opt-Out Selected Users</field>
+        <field name="model_id" ref="base.model_res_users"/>
+        <field name="binding_model_id" ref="base.model_res_users"/>
+        <field name="binding_type">action</field>
+        <field name="state">code</field>
+        <field name="code"><![CDATA[
+if records and env.context.get('active_template_id'):
+    template = env['mail.template'].browse(env.context['active_template_id'])
+    template.with_context(subscription_action_source='template_side')._bulk_opt_out(records.ids)
+]]></field>
+    </record>
+
+</odoo>

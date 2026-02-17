@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_res_users_form_inherit_my_mail_notifications" model="ir.ui.view">
+        <field name="name">res.users.form.inherit.my.mail.notifications</field>
+        <field name="model">res.users</field>
+        <field name="inherit_id" ref="base.view_users_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_view_opted_out_templates"
+                        type="object"
+                        class="oe_stat_button"
+                        icon="fa-bell-slash">
+                    <field name="opted_out_template_count" string="Opt-Outs" widget="statinfo"/>
+                </button>
+            </xpath>
+
+            <xpath expr="//notebook" position="inside">
+                <page string="Notifications" name="my_mail_notifications" invisible="not id">
+                    <group>
+                        <group>
+                            <field name="subscription_count" readonly="1"/>
+                            <field name="total_subscribable_count" readonly="1"/>
+                        </group>
+                        <group>
+                            <button name="subscribe_all_templates"
+                                    type="object"
+                                    string="Subscribe All"
+                                    class="btn btn-secondary"/>
+                            <button name="unsubscribe_all_templates"
+                                    type="object"
+                                    string="Unsubscribe All"
+                                    class="btn btn-secondary"/>
+                            <button name="action_view_subscribable_templates"
+                                    type="object"
+                                    string="Manage Subscriptions"
+                                    class="btn btn-primary"/>
+                        </group>
+                    </group>
+
+                    <group string="Enabled Templates (Subscribed)">
+                        <field name="available_templates"
+                               widget="many2many_tags"
+                               readonly="1"
+                               options="{'no_create': True, 'no_open': False}"/>
+                    </group>
+
+                    <group string="Disabled Templates (Opted-Out by Group)">
+                        <field name="opted_out_template_ids"
+                               widget="many2many"
+                               options="{'no_create': True, 'no_open': False}"
+                               domain="[('email_notification_type', '=', 'informational')]">
+                            <tree string="Opted-Out Templates" create="false">
+                                <field name="template_group" optional="hide"/>
+                                <field name="name"/>
+                                <field name="email_notification_type" widget="badge"/>
+                            </tree>
+                        </field>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="action_my_mail_user_bulk_opt_out_templates" model="ir.actions.server">
+        <field name="name">Opt-Out Selected Templates for User</field>
+        <field name="model_id" ref="mail.model_mail_template"/>
+        <field name="binding_model_id" ref="mail.model_mail_template"/>
+        <field name="binding_type">action</field>
+        <field name="state">code</field>
+        <field name="code"><![CDATA[
+if records and env.context.get('active_user_id'):
+    user = env['res.users'].browse(env.context['active_user_id'])
+    user.bulk_opt_out_templates(records.ids)
+]]></field>
+    </record>
+
+    <record id="action_my_mail_user_bulk_opt_in_templates" model="ir.actions.server">
+        <field name="name">Opt-In Selected Templates for User</field>
+        <field name="model_id" ref="mail.model_mail_template"/>
+        <field name="binding_model_id" ref="mail.model_mail_template"/>
+        <field name="binding_type">action</field>
+        <field name="state">code</field>
+        <field name="code"><![CDATA[
+if records and env.context.get('active_user_id'):
+    user = env['res.users'].browse(env.context['active_user_id'])
+    user.bulk_opt_in_templates(records.ids)
+]]></field>
+    </record>
+</odoo>

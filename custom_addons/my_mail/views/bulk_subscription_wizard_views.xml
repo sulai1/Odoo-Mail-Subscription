@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_my_mail_bulk_subscription_wizard_form" model="ir.ui.view">
+        <field name="name">my.mail.bulk.subscription.wizard.form</field>
+        <field name="model">my.mail.bulk.subscription.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Bulk Subscription Management">
+                <group>
+                    <field name="action"/>
+                    <field name="template_ids" widget="many2many_tags" options="{'no_create': True}"/>
+                    <field name="user_ids" widget="many2many_tags" options="{'no_create': True}"/>
+                </group>
+                <footer>
+                    <button name="action_apply" type="object" string="Apply" class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_my_mail_bulk_subscription_wizard" model="ir.actions.act_window">
+        <field name="name">Bulk Subscription Management</field>
+        <field name="res_model">my.mail.bulk.subscription.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="view_id" ref="view_my_mail_bulk_subscription_wizard_form"/>
+    </record>
+
+    <menuitem id="menu_my_mail_bulk_subscription_wizard"
+              name="Bulk Manage Subscriptions"
+              parent="menu_my_mail_root"
+              action="action_my_mail_bulk_subscription_wizard"
+              sequence="20"
+              groups="base.group_system"/>
+
+    <record id="action_open_bulk_wizard_from_templates" model="ir.actions.server">
+        <field name="name">Bulk Manage Subscriptions</field>
+        <field name="model_id" ref="mail.model_mail_template"/>
+        <field name="binding_model_id" ref="mail.model_mail_template"/>
+        <field name="binding_type">action</field>
+        <field name="state">code</field>
+        <field name="code"><![CDATA[
+action = {
+    'type': 'ir.actions.act_window',
+    'name': 'Bulk Subscription Management',
+    'res_model': 'my.mail.bulk.subscription.wizard',
+    'view_mode': 'form',
+    'target': 'new',
+    'context': {
+        'default_template_ids': [(6, 0, records.ids)],
+    },
+}
+]]></field>
+    </record>
+
+    <record id="action_open_bulk_wizard_from_users" model="ir.actions.server">
+        <field name="name">Bulk Manage Subscriptions</field>
+        <field name="model_id" ref="base.model_res_users"/>
+        <field name="binding_model_id" ref="base.model_res_users"/>
+        <field name="binding_type">action</field>
+        <field name="state">code</field>
+        <field name="code"><![CDATA[
+action = {
+    'type': 'ir.actions.act_window',
+    'name': 'Bulk Subscription Management',
+    'res_model': 'my.mail.bulk.subscription.wizard',
+    'view_mode': 'form',
+    'target': 'new',
+    'context': {
+        'default_user_ids': [(6, 0, records.ids)],
+    },
+}
+]]></field>
+    </record>
+</odoo>

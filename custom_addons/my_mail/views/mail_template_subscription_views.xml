@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ============================================ -->
+    <!-- Mail Template Form View - Extended           -->
+    <!-- ============================================ -->
+    
+    <record id="view_my_mail_template_form_inherit" model="ir.ui.view">
+        <field name="name">mail.template.form.inherit.subscription</field>
+        <field name="model">mail.template</field>
+        <field name="inherit_id" ref="mail.email_template_form"/>
+        <field name="arch" type="xml">
+            <!-- Add notification type field after Name field -->
+            
+            <xpath expr="//field[@name='name']" position="after">
+                <field name="email_notification_type" 
+                       widget="radio"
+                       help="Transactional = Always sent to all users, cannot opt-out. Informational = Users can opt-out. Marketing = Future opt-in model."/>
+                <field name="template_group"
+                       help="Organizational group for categorizing templates in user notification tabs"/>
+            </xpath>
+            
+            <!-- Add smart button for opted-out users count (informational only) -->
+            <xpath expr="//sheet" position="inside">
+                <div class="oe_button_box" name="button_box">
+                <button name="action_view_opted_out_users" 
+                        type="object"
+                        class="oe_stat_button"
+                        icon="fa-times-circle"
+                        invisible="email_notification_type != 'informational'">
+                    <field string="Opted-Out Users" 
+                           name="opted_out_user_count" 
+                           widget="statinfo"/>
+                </button>
+                </div>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- ============================================ -->
+    <!-- Opted-Out Users Tree View                    -->
+    <!-- ============================================ -->
+    
+    <record id="view_my_mail_template_opted_out_users_tree" model="ir.ui.view">
+        <field name="name">mail.template.opted_out_users.tree</field>
+        <field name="model">res.users</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="email"/>
+                <field name="company_id"/>
+                <field name="write_date"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- ============================================ -->
+    <!-- Opted-Out Users Form View                    -->
+    <!-- ============================================ -->
+    
+    <record id="view_my_mail_template_opted_out_users_form" model="ir.ui.view">
+        <field name="name">mail.template.opted_out_users.form</field>
+        <field name="model">res.users</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <field name="name"/>
+                        <field name="email"/>
+                        <field name="company_id"/>
+                        <field name="write_date"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- ============================================ -->
+    <!-- Action: Show Opted-Out Users for Template    -->
+    <!-- ============================================ -->
+    
+    <record id="action_my_mail_template_opted_out_users" model="ir.actions.act_window">
+        <field name="name">Opted-Out Users</field>
+        <field name="res_model">res.users</field>
+        <field name="view_mode">list,form</field>
+        <field name="context">{}</field>
+        <field name="help">Users who have opted out of this email template.</field>
+    </record>
+
+</odoo>

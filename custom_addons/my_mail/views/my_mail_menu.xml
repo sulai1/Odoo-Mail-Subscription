@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Main menu placeholder -->
+    <menuitem id="menu_my_mail_root" name="My Mail" sequence="10"/>
+</odoo>

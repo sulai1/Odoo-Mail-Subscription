@@ -1,0 +1,5 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_my_mail_message_user,my.mail.message user,model_my_mail_message,,1,1,1,1
+access_my_mail_bulk_subscription_wizard_system,my.mail.bulk.subscription.wizard system,model_my_mail_bulk_subscription_wizard,base.group_system,1,1,1,1
+access_my_mail_subscription_audit_log_system,my.mail.subscription.audit.log system,model_my_mail_subscription_audit_log,base.group_system,1,0,0,0
+access_my_mail_subscription_audit_log_user,my.mail.subscription.audit.log user,model_my_mail_subscription_audit_log,base.group_user,1,0,1,0
