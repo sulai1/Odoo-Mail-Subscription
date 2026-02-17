@@ -89,18 +89,13 @@ class MailTemplate(models.Model):
     # ========== Computed Fields & Triggers ==========
     
     @api.depends('opted_out_user_ids')
-    def _compute_opted_out_user_count(self):
-        """Compute the count of opted-out users for this template."""
-        for template in self:
-            template.opted_out_user_count = len(template.opted_out_user_ids)
-    
-    @api.depends('opted_out_user_ids')
     def _compute_current_user_subscribed(self):
         """Check if current user is subscribed (not opted out) to this template."""
         current_user = self.env.user
         for template in self:
             template.current_user_subscribed = current_user not in template.opted_out_user_ids
     
+    @api.depends('opted_out_user_ids')
     def _inverse_current_user_subscribed(self):
         """Track user toggles and adjust opt-out links accordingly."""
         user_id = self.env.user.id
@@ -108,10 +103,18 @@ class MailTemplate(models.Model):
         for template in self:
             opted_out = user_id in template.opted_out_user_ids.ids
             if template.current_user_subscribed and opted_out:
+                print(f"User {self.env.user.name} is subscribing to template '{template.name}' via UI toggle.")
                 template.with_context(**context)._bulk_opt_in([user_id])
             elif not template.current_user_subscribed and not opted_out:
+                print(f"User {self.env.user.name} is opting out of template '{template.name}' via UI toggle.")
                 template.with_context(**context)._bulk_opt_out([user_id])
 
+    @api.depends('opted_out_user_ids')
+    def _compute_opted_out_user_count(self):
+        """Compute the count of opted-out users for this template."""
+        for template in self:
+            template.opted_out_user_count = len(template.opted_out_user_ids)
+    
     @api.onchange('email_notification_type')
     def _onchange_email_notification_type(self):
         """Update is_user_subscribable and manage subscription records based on type.
@@ -186,8 +189,8 @@ class MailTemplate(models.Model):
     def _get_valid_recipients_respecting_subscriptions(self, user_ids):
         """Filter recipients based on subscription status (opt-outs).
         
-        Only applies to informational templates. Transactional and marketing
-        templates never filter (all users receive them regardless of opt-out status).
+        Applies to informational and marketing templates using opt-out links.
+        Transactional templates never filter (all users receive them).
         
         Args:
             user_ids (list): List of user IDs to filter
@@ -197,8 +200,8 @@ class MailTemplate(models.Model):
         """
         self.ensure_one()
         
-        # Only filter informational emails - others are never filtered
-        if self.email_notification_type != 'informational':
+        # Transactional emails are never filtered
+        if self.email_notification_type == 'transactional':
             return user_ids
         
         # Get opted-out user IDs for this template
@@ -213,13 +216,13 @@ class MailTemplate(models.Model):
         Enforces notification type rules:
         - Transactional: Cannot opt-out (raises error)
         - Informational: Can opt-out (normal operation)
-        - Marketing: Cannot opt-out via this model (uses opt-in instead)
+        - Marketing: Can opt-out (unsubscribe in opt-in model)
         
         Args:
             user_ids (list): List of user IDs to opt out
             
         Raises:
-            ValidationError: If template is transactional or marketing
+            ValidationError: If template is transactional
         """
         self.ensure_one()
         
@@ -253,7 +256,7 @@ class MailTemplate(models.Model):
         Notification types:
         - Transactional: No-op (users always receive, never opted-out)
         - Informational: Remove from opt-out list (normal operation)
-        - Marketing: No-op (uses opt-in model, not this one)
+        - Marketing: Remove from opt-out list (explicit opt-in)
         
         Args:
             user_ids (list): List of user IDs to opt in (remove from opt-outs)
@@ -262,10 +265,6 @@ class MailTemplate(models.Model):
         
         # For transactional, opt-in is a no-op (users always receive)
         if self.email_notification_type == 'transactional':
-            return
-        
-        # Marketing templates should not have opted-out users in this model
-        if self.email_notification_type == 'marketing':
             return
         
         users_to_remove = self.env['res.users'].browse(user_ids)
@@ -312,15 +311,15 @@ class MailTemplate(models.Model):
         
         - Transactional: All users are subscribed (no opt-out possible)
         - Informational: Users NOT in opted_out list
-        - Marketing: All users are subscribed (uses opt-in model, not this one)
+        - Marketing: Users NOT in opted_out list (explicit opt-in)
         
         Returns:
             list: User IDs subscribed to this template
         """
         self.ensure_one()
         
-        # Transactional and marketing always send to all users
-        if self.email_notification_type in ['transactional', 'marketing']:
+        # Transactional emails always send to all users
+        if self.email_notification_type == 'transactional':
             return self.env['res.users'].search([]).ids
         
         # For informational, get all users except opted out

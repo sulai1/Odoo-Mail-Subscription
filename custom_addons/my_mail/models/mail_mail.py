@@ -24,7 +24,7 @@ class MailMail(models.Model):
         Respects template notification type rules during sending:
         - Transactional: Never filter (all users receive regardless of opt-out)
         - Informational: Filter opted-out users (user can opt-out)
-        - Marketing: Don't filter (uses opt-in model, not yet implemented)
+        - Marketing: Filter opted-out users (explicit opt-in)
         
         Can be bypassed with context flag bypass_subscription_check=True
         for critical/transactional emails.
@@ -41,11 +41,11 @@ class MailMail(models.Model):
             for mail in self:
                 template = mail._get_subscription_template()
                 if template:
-                    # Only filter for informational templates
-                    if template.email_notification_type == 'informational':
+                    # Filter all non-transactional templates
+                    if template.email_notification_type != 'transactional':
                         # Filter recipients who haven't opted out
                         self._filter_recipients_by_subscriptions(mail)
-                    # Transactional and marketing templates are never filtered
+                    # Transactional templates are never filtered
         
         # Call parent send method with all kwargs
         return super()._send(
@@ -58,9 +58,8 @@ class MailMail(models.Model):
     def _filter_recipients_by_subscriptions(self, mail):
         """Filter mail recipients based on template subscription status.
         
-        Only filters opted-out users if template is informational type.
+        Filters opted-out users for informational and marketing templates.
         Transactional templates NEVER filter (all users get the email).
-        Marketing templates don't use this model (opt-in, not yet implemented).
         
         Args:
             mail (mail.mail): Mail record to filter
@@ -75,10 +74,6 @@ class MailMail(models.Model):
         
         # Never filter transactional emails
         if template.email_notification_type == 'transactional':
-            return
-        
-        # Skip marketing (uses opt-in model)
-        if template.email_notification_type == 'marketing':
             return
         
         # For informational templates, filter out opted-out users

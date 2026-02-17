@@ -4,3 +4,15 @@ odoo-bin
 odoo
 doc
 setup
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+*.db
+*.log
+*.pot
+*.mo
+*.swp
+*.swo
+*.zip
+*.tar.gz

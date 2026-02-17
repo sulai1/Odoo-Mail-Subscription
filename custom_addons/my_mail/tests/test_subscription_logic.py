@@ -40,6 +40,14 @@ class TestMyMailSubscriptionLogic(TransactionCase):
             'email_notification_type': 'transactional',
         })
 
+        cls.template_marketing = cls.env['mail.template'].create({
+            'name': 'MyMail Marketing Template',
+            'model_id': cls.model_res_partner.id,
+            'subject': 'Marketing Subscription Test',
+            'body_html': '<p>Marketing Test Body</p>',
+            'email_notification_type': 'marketing',
+        })
+
     def test_01_default_state_user_not_opted_out(self):
         self.assertFalse(
             self.template_subscribable._is_user_opted_out(self.user_regular),
@@ -132,3 +140,28 @@ class TestMyMailSubscriptionLogic(TransactionCase):
         )
         self.assertIn('opt_out', logs.mapped('action'))
         self.assertIn('opt_in', logs.mapped('action'))
+
+    def test_08_marketing_template_opt_in_and_filter(self):
+        # Marketing starts as opt-in: active users are opted out by default
+        self.assertIn(
+            self.user_regular,
+            self.template_marketing.opted_out_user_ids,
+            'Marketing template should default users to opted-out.',
+        )
+
+        # Opt-in should now remove user from opted-out list
+        self.template_marketing._bulk_opt_in([self.user_regular.id])
+        self.assertNotIn(
+            self.user_regular,
+            self.template_marketing.opted_out_user_ids,
+            'User should be removed from opted-out list after marketing opt-in.',
+        )
+
+        # Recipient filtering should keep opted-in user and remove opted-out user
+        recipient_ids = [self.user_optout.id, self.user_regular.id]
+        filtered = self.template_marketing._get_valid_recipients_respecting_subscriptions(
+            recipient_ids
+        )
+
+        self.assertIn(self.user_regular.id, filtered)
+        self.assertNotIn(self.user_optout.id, filtered)
