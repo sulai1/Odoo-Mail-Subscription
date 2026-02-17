@@ -6,9 +6,11 @@
         <field name="model">mail.template</field>
         <field name="arch" type="xml">
             <list string="E-Mail-Vorlagen" create="false" edit="false" delete="false" default_group_by="template_group">
+                <field name="id" string="ID"/>
                 <field name="template_group" column_invisible="1"/>
                 <field name="name" string="Vorlage"/>
                 <field name="email_notification_type" string="Kategorie"/>
+                <field name="current_user_subscribed" string="Abonnement" widget="boolean"/>
                 <button name="action_toggle_current_user_subscription"
                         string="Abonnement"
                         type="object"

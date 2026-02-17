@@ -1,3 +1,5 @@
+import logging
+
 from odoo import models, fields, api
 from odoo.exceptions import ValidationError
 
@@ -61,26 +63,26 @@ class MailTemplate(models.Model):
     
     # ========== Constraints ==========
     
+    _logger = logging.getLogger(__name__)
+
     @api.constrains('email_notification_type', 'opted_out_user_ids')
     def _check_notification_type_consistency(self):
         """Enforce notification type-specific rules.
         
         - Transactional templates: Cannot have opted-out users
         - Informational templates: Can have opted-out users (normal)
-        - Marketing templates: Should not have opted-out users (uses opted-in model future)
+        - Marketing templates: Default to opted-out so no restriction
         """
         for template in self:
-            if template.opted_out_user_ids:
-                if template.email_notification_type == 'transactional':
-                    raise ValidationError(
-                        f"Template '{template.name}' is Transactional. "
-                        "Users cannot opt-out of transactional emails."
-                    )
-                elif template.email_notification_type == 'marketing':
-                    raise ValidationError(
-                        f"Template '{template.name}' is Marketing. "
-                        "Use opt-in model for marketing emails (not yet implemented)."
-                    )
+            if template.opted_out_user_ids and template.email_notification_type == 'transactional':
+                self._logger.error(
+                    "Transactional template '%s' has opted-out users. Blocking save.",
+                    template.name,
+                )
+                raise ValidationError(
+                    f"Template '{template.name}' is Transactional. "
+                    "Users cannot opt-out of transactional emails."
+                )
     
     # ========== Computed Fields & Triggers ==========
     
@@ -99,14 +101,63 @@ class MailTemplate(models.Model):
     
     @api.onchange('email_notification_type')
     def _onchange_email_notification_type(self):
-        """Update is_user_subscribable and reset opt-outs based on email_notification_type.
+        """Update is_user_subscribable and manage subscription records based on type.
         
-        Transactional emails cannot be opted-out, so is_user_subscribable = False.
-        All other types allow user subscription control. When changing notification type,
-        reset all users to opted-in (clear the opt-out list) using bulk operations.
+        - Transactional: Cannot opt-out, is_user_subscribable = False, no subscription records
+        - Informational: Can opt-out, is_user_subscribable = True, no subscription records
+        - Marketing: Opt-in model, is_user_subscribable = True, requires subscription records
+        
+        When changing TO marketing: Create subscription records for all existing users
+        When changing FROM marketing: Delete all subscription records
         """
         self.is_user_subscribable = self.email_notification_type != 'transactional'
-    
+
+        current_type = self.email_notification_type
+
+        print(f"Notification type changed to {current_type} for template '{self.name}'. Updating subscription records accordingly.")
+
+        if current_type == 'marketing':
+            self._populate_opt_out_relations()
+        elif current_type != 'marketing':
+            self._clear_opt_out_relations()
+
+
+    def _populate_opt_out_relations(self):
+        """Mirror the database trigger by opting-out every active user for marketing."""
+        self.ensure_one()
+        active_users = self.env['res.users'].search([('active', '=', True)])
+        print(f"Populating opt-out relations for marketing template '{self.name}' with {len(active_users)} active users.")
+        self.opted_out_user_ids = [(6, 0, active_users.ids)]
+
+
+    def _clear_opt_out_relations(self):
+        """Clear every opt-out link when leaving marketing types."""
+        self.ensure_one()
+        print(f"Clearing opt-out relations for template '{self.name}'.")
+        self.opted_out_user_ids = [(5, 0, 0)]
+
+    def create(self, vals):
+        """Ensure marketing templates start with every user opted-out."""
+        template = super().create(vals)
+        if template.email_notification_type == 'marketing':
+            template._populate_opt_out_relations()
+        return template
+
+    def write(self, vals):
+        """Maintain opt-out relations when templates switch types."""
+        marketing_before = {tmpl.id for tmpl in self if tmpl.email_notification_type == 'marketing'}
+        result = super().write(vals)
+        for template in self:
+            is_marketing = template.email_notification_type == 'marketing'
+            was_marketing = template.id in marketing_before
+
+            if is_marketing and not was_marketing:
+                template._populate_opt_out_relations()
+            elif not is_marketing and was_marketing:
+                template._clear_opt_out_relations()
+
+        return result
+
     def _is_user_opted_out(self, user):
         """Check if a specific user has opted out of this template.
         
@@ -161,16 +212,12 @@ class MailTemplate(models.Model):
         
         # Block opt-out for transactional templates
         if self.email_notification_type == 'transactional':
+            self._logger.error(
+                "Opt-out requested on transactional template '%s'.", self.name
+            )
             raise ValidationError(
                 f"Cannot opt-out of transactional template '{self.name}'. "
                 "Transactional emails must be sent to all users."
-            )
-        
-        # Block opt-out for marketing templates (use opt-in model instead)
-        if self.email_notification_type == 'marketing':
-            raise ValidationError(
-                f"Template '{self.name}' is marketing type. "
-                "Use opt-in model for marketing emails (not yet implemented)."
             )
         
         users_to_add = self.env['res.users'].browse(user_ids)
@@ -306,56 +353,12 @@ class MailTemplate(models.Model):
         
         if current_user in self.opted_out_user_ids:
             # User is opted out, subscribe them
-            self.with_context(subscription_action_source='user_notification_tab')._bulk_opt_in([current_user.id])
+            self.with_context(subscription_action_source='user_side')._bulk_opt_in([current_user.id])
         else:
             # User is subscribed, opt them out
-            self.with_context(subscription_action_source='user_notification_tab')._bulk_opt_out([current_user.id])
+            self.with_context(subscription_action_source='user_side')._bulk_opt_out([current_user.id])
         
         return {
             'type': 'ir.actions.client',
             'tag': 'reload',
         }
-    
-    # ========== Subscription Frequency Methods ==========
-    
-    def set_user_frequency(self, user_id, frequency):
-        """Set subscription frequency for a user on this template.
-        
-        Args:
-            user_id (int): User ID
-            frequency (str): One of 'immediate', 'daily', 'weekly', 'off'
-            
-        Returns:
-            mail.template.user.subscription: Created or updated subscription
-        """
-        self.ensure_one()
-        
-        Subscription = self.env['mail.template.user.subscription']
-        return Subscription.set_user_frequency(self.id, user_id, frequency)
-    
-    def get_user_frequency(self, user_id):
-        """Get subscription frequency for a user on this template.
-        
-        Args:
-            user_id (int): User ID
-            
-        Returns:
-            str: Frequency value; 'immediate' if no preference set
-        """
-        self.ensure_one()
-        
-        Subscription = self.env['mail.template.user.subscription']
-        return Subscription.get_user_frequency(self.id, user_id)
-    
-    def set_user_frequency_bulk(self, user_ids, frequency):
-        """Bulk set frequency for multiple users on this template.
-        
-        Args:
-            user_ids (list): List of user IDs
-            frequency (str): Frequency to set for all
-        """
-        self.ensure_one()
-        
-        Subscription = self.env['mail.template.user.subscription']
-        template_ids = [self.id]
-        Subscription.bulk_set_frequency(template_ids, user_ids, frequency)

@@ -61,9 +61,9 @@ class MailTemplateUserSubscription(models.Model):
     def _check_frequency_by_template_type(self):
         """Enforce frequency rules based on template notification type.
         
-        - Transactional: Cannot be 'off' or 'daily'/'weekly'
+        - Transactional: Cannot be 'off', 'daily', or 'weekly' (must be 'immediate')
         - Informational: All frequencies allowed
-        - Marketing: Cannot be 'off' (uses opt-in model, not opt-out)
+        - Marketing: All frequencies allowed (off = not opted in yet, immediate/daily/weekly = opted in)
         """
         for subscription in self:
             template_type = subscription.template_id.email_notification_type
@@ -74,14 +74,6 @@ class MailTemplateUserSubscription(models.Model):
                         f"Template '{subscription.template_id.name}' is Transactional. "
                         "Users must receive it immediately; 'daily', 'weekly', and 'off' "
                         "are not allowed."
-                    )
-            
-            elif template_type == 'marketing':
-                if subscription.frequency == 'off':
-                    raise ValidationError(
-                        f"Template '{subscription.template_id.name}' is Marketing. "
-                        "Users must explicitly opt-in; use the opt-in model instead "
-                        "of marking as 'off' in this subscription system."
                     )
     
     # ========== Helper Properties ==========

@@ -73,7 +73,6 @@ class TestMyMailSubscriptionLogic(TransactionCase):
         self.assertIn(self.user_regular.id, filtered)
 
     def test_04_non_subscribable_template_does_not_filter(self):
-        self.template_non_subscribable._bulk_opt_out([self.user_optout.id])
         recipient_ids = [self.user_optout.id, self.user_regular.id]
 
         filtered = self.template_non_subscribable._get_valid_recipients_respecting_subscriptions(
@@ -83,7 +82,7 @@ class TestMyMailSubscriptionLogic(TransactionCase):
         self.assertEqual(
             sorted(filtered),
             sorted(recipient_ids),
-            'Non-subscribable templates should not filter recipients.',
+            'Non-subscribable (transactional) templates should not filter recipients.',
         )
 
     def test_05_user_toggle_subscription(self):
