@@ -40,38 +40,66 @@ class ResUsers(models.Model):
         help="Number of templates this user has opted out of"
     )
     
+    all_subscribable_templates = fields.Many2many(
+        'mail.template',
+        compute='_compute_all_subscribable_templates',
+        string="All Subscribable Templates",
+        help="All informational and marketing templates for subscription management"
+    )
     # ========== Computed Fields ==========
+    
+    @api.depends()
+    def _compute_all_subscribable_templates(self):
+        """Compute list of all subscribable templates (informational and marketing types).
+        
+        Returns all templates regardless of user's subscription status.
+        - Informational: User can opt-out (by default subscribed)
+        - Marketing: User must opt-in (by default unsubscribed)
+        Used to display the full list with toggle buttons.
+        """
+        subscribable = self.env['mail.template'].search([
+            ('email_notification_type', 'in', ['informational', 'marketing'])
+        ], order='template_group, name')
+        
+        for user in self:
+            user.all_subscribable_templates = subscribable
     
     @api.depends('opted_out_template_ids')
     def _compute_available_templates(self):
-        """Compute list of informational templates user is still subscribed to.
+        """Compute list of templates user is still subscribed to.
         
-        Available = All informational templates - Opted-out templates
+        Available = All subscribable templates - Opted-out templates
         """
         for user in self:
-            # Get all informational templates
-            all_informational = self.env['mail.template'].search([
-                ('email_notification_type', '=', 'informational')
+            # Get all subscribable templates (informational and marketing)
+            all_subscribable = self.env['mail.template'].search([
+                ('email_notification_type', 'in', ['informational', 'marketing'])
             ])
             
             # Compute available by excluding opted-out
-            user.available_templates = all_informational - user.opted_out_template_ids
+            user.available_templates = all_subscribable - user.opted_out_template_ids
     
     @api.depends('opted_out_template_ids')
     def _compute_subscription_count(self):
-        """Compute count of informational templates user is actively subscribed to."""
+        """Compute count of subscribable templates user is actively subscribed to.
+        
+        Includes both informational (opt-out) and marketing (opt-in) templates.
+        """
         for user in self:
-            all_informational = self.env['mail.template'].search([
-                ('email_notification_type', '=', 'informational')
+            all_subscribable = self.env['mail.template'].search([
+                ('email_notification_type', 'in', ['informational', 'marketing'])
             ])
-            user.subscription_count = len(all_informational) - len(user.opted_out_template_ids)
+            user.subscription_count = len(all_subscribable) - len(user.opted_out_template_ids)
     
     @api.depends()
     def _compute_total_subscribable(self):
-        """Compute total number of informational templates in system."""
+        """Compute total number of subscribable templates in system.
+        
+        Includes informational and marketing templates.
+        """
         for user in self:
             user.total_subscribable_count = self.env['mail.template'].search_count([
-                ('email_notification_type', '=', 'informational')
+                ('email_notification_type', 'in', ['informational', 'marketing'])
             ])
 
     @api.depends('opted_out_template_ids')
@@ -188,20 +216,22 @@ class ResUsers(models.Model):
         }
 
     def action_view_subscribable_templates(self):
-        """Open subscribable templates list for current user with bulk actions.
+        """Open subscribable templates list for current user to manage subscriptions.
 
         Returns:
-            dict: Window action on mail.template
+            dict: Window action showing all subscribable templates with toggle buttons
         """
         self.ensure_one()
 
-        action = self.env.ref('mail.action_email_template_tree_all').read()[0]
-        action.update({
-            'name': f"Email Subscriptions: {self.name}",
+        return {
+            'name': f"E-Mail-Abonnements: {self.name}",
+            'type': 'ir.actions.act_window',
+            'res_model': 'mail.template',
+            'view_mode': 'list',
+            'view_id': self.env.ref('my_mail.view_mail_template_user_subscription_list').id,
             'domain': [('email_notification_type', '=', 'informational')],
             'context': {
-                'active_user_id': self.id,
-                'search_default_custom_templates': 0,
+                'group_by': 'template_group',
             },
-        })
-        return action
+            'target': 'current',
+        }

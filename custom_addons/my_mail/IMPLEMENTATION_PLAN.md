@@ -128,24 +128,34 @@ Pivot Table: mail_template_user_optout_rel
 
 ### Phase 3: User Interface - User Side (res.users)
 - [x] **3.1** Create user notification tab
-  - [x] Add new tab "Notifications" to res.users form view
+  - [x] Add new tab "Benachrichtigungen" (Notifications) to res.users form view
   - [x] Position after Settings, before other tabs
 
-- [ ] **3.2** Add subscription list on user form
-  - [x] Display all subscribable templates
-  - [x] Each row: Template Name + Toggle Switch (ON/OFF)
-  - [x] Toggle state reflects opt-out status (currently opted-out = OFF)
-  - [x] Add count badge: "X of Y subscriptions active"
+- [x] **3.2** Add subscription list on user form with toggle switches
+  - [x] Display all subscribable templates (email_notification_type = 'informational')
+  - [x] Only show templates that users can control subscriptions for
+  - [x] Each template shows:
+    - Template name
+    - Template group (badge)
+    - Toggle button (Green/Aktiv if subscribed, Red/Inaktiv if opted-out)
+  - [x] Kanban card layout for user-friendly display
+  - [x] Grouped by template_group for better organization
+  - [x] Toggle state reflects opt-out status:
+    - ON (Green) = User receives the email (not opted-out)
+    - OFF (Red) = User opted-out, doesn't receive the email
+  - [x] German labels: "Aktiv" and "Inaktiv" for toggle states
+  - [x] Helpful info message explaining how to use toggles
 
-- [ ] **3.3** Implement toggle logic
-  - [x] Create method `toggle_template_subscription(template_id)` 
-  - [x] AJAX-friendly (optional state change without reload)
-  - [x] Add logging when toggled (audit trail via tracking)
+- [x] **3.3** Implement toggle logic
+  - [x] Create method `toggle_template_subscription(template_id)` on res.users
+  - [x] Toggle calls `_bulk_opt_out()` or `_bulk_opt_in()` as appropriate
+  - [x] AJAX-friendly form refresh after toggle
+  - [x] Add logging when toggled via audit trail
 
 - [ ] **3.4** Add bulk management on user side
-  - [x] Checkbox for multi-select templates in the notification list
-  - [x] Button group: "Subscribe Selected" and "Unsubscribe Selected"
-  - [x] "Subscribe All" and "Unsubscribe All" quick actions
+  - [ ] Checkbox for multi-select templates in the notification list
+  - [ ] Button group: "Subscribe Selected" and "Unsubscribe Selected"
+  - [ ] "Subscribe All" and "Unsubscribe All" quick actions
 
 - [x] **3.5** Add smart button on res.users
   - [x] Smart button: "X Opt-Outs" (count of opted-out templates)

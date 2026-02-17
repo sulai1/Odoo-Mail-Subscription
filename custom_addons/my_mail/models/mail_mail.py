@@ -18,7 +18,7 @@ class MailMail(models.Model):
         return self.env['mail.template']
     
     def _send(self, auto_commit=False, raise_exception=False,
-              smtp_session=None):
+              smtp_session=None, **kwargs):
         """Override mail sending to respect user subscription preferences.
         
         Respects template notification type rules during sending:
@@ -47,11 +47,12 @@ class MailMail(models.Model):
                         self._filter_recipients_by_subscriptions(mail)
                     # Transactional and marketing templates are never filtered
         
-        # Call parent send method
+        # Call parent send method with all kwargs
         return super()._send(
             auto_commit=auto_commit,
             raise_exception=raise_exception,
-            smtp_session=smtp_session
+            smtp_session=smtp_session,
+            **kwargs
         )
     
     def _filter_recipients_by_subscriptions(self, mail):

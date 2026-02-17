@@ -1,5 +1,42 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+    <!-- Tree view for subscribable templates shown in user notification tab -->
+    <record id="view_mail_template_user_subscription_list" model="ir.ui.view">
+        <field name="name">mail.template.user.subscription.list</field>
+        <field name="model">mail.template</field>
+        <field name="arch" type="xml">
+            <list string="E-Mail-Vorlagen" create="false" edit="false" delete="false" default_group_by="template_group">
+                <field name="template_group" column_invisible="1"/>
+                <field name="name" string="Vorlage"/>
+                <field name="email_notification_type" string="Kategorie"/>
+                <button name="action_toggle_current_user_subscription"
+                        string="Abonnement"
+                        type="object"
+                        title="Abonnement umschalten"
+                        icon="fa-toggle-on"
+                        class="btn-link"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Action to show subscribable templates for user -->
+    <record id="action_user_subscribable_templates" model="ir.actions.act_window">
+        <field name="name">Meine E-Mail-Abonnements</field>
+        <field name="res_model">mail.template</field>
+        <field name="view_mode">list</field>
+        <field name="view_id" ref="view_mail_template_user_subscription_list"/>
+        <field name="domain">[('email_notification_type', 'in', ['informational', 'marketing'])]</field>
+        <field name="context">{'group_by': 'template_group'}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_empty_folder">
+                Keine abonnierbaren E-Mail-Vorlagen gefunden
+            </p>
+            <p>
+                Klicken Sie auf den Toggle-Button, um E-Mail-Benachrichtigungen zu aktivieren oder zu deaktivieren.
+            </p>
+        </field>
+    </record>
+
     <record id="view_res_users_form_inherit_my_mail_notifications" model="ir.ui.view">
         <field name="name">res.users.form.inherit.my.mail.notifications</field>
         <field name="model">res.users</field>
@@ -15,75 +52,30 @@
             </xpath>
 
             <xpath expr="//notebook" position="inside">
-                <page string="Notifications" name="my_mail_notifications" invisible="not id">
+                <page string="Benachrichtigungen" name="my_mail_notifications" invisible="not id">
+
                     <group>
                         <group>
-                            <field name="subscription_count" readonly="1"/>
-                            <field name="total_subscribable_count" readonly="1"/>
-                        </group>
-                        <group>
-                            <button name="subscribe_all_templates"
-                                    type="object"
-                                    string="Subscribe All"
-                                    class="btn btn-secondary"/>
-                            <button name="unsubscribe_all_templates"
-                                    type="object"
-                                    string="Unsubscribe All"
-                                    class="btn btn-secondary"/>
-                            <button name="action_view_subscribable_templates"
-                                    type="object"
-                                    string="Manage Subscriptions"
-                                    class="btn btn-primary"/>
+                            <label for="subscription_count" string="Abonnements"/>
+                            <div class="o_row">
+                                <field name="subscription_count" readonly="1" class="oe_inline"/>
+                                <span> von </span>
+                                <field name="total_subscribable_count" readonly="1" class="oe_inline"/>
+                                <span> aktiv</span>
+                            </div>
                         </group>
                     </group>
 
-                    <group string="Enabled Templates (Subscribed)">
-                        <field name="available_templates"
-                               widget="many2many_tags"
-                               readonly="1"
-                               options="{'no_create': True, 'no_open': False}"/>
-                    </group>
+                    <separator string="E-Mail-Abonnements"/>
+                    <p class="text-muted">Klicken Sie auf die Schaltfläche, um alle abonnierbaren E-Mail-Vorlagen anzuzeigen und Ihre Abonnements zu verwalten.</p>
+                    
+                    <button name="my_mail.action_user_subscribable_templates"
+                            type="action"
+                            string="E-Mail-Abonnements verwalten"
+                            class="btn-primary"/>
 
-                    <group string="Disabled Templates (Opted-Out by Group)">
-                        <field name="opted_out_template_ids"
-                               widget="many2many"
-                               options="{'no_create': True, 'no_open': False}"
-                               domain="[('email_notification_type', '=', 'informational')]">
-                            <tree string="Opted-Out Templates" create="false">
-                                <field name="template_group" optional="hide"/>
-                                <field name="name"/>
-                                <field name="email_notification_type" widget="badge"/>
-                            </tree>
-                        </field>
-                    </group>
                 </page>
             </xpath>
         </field>
-    </record>
-
-    <record id="action_my_mail_user_bulk_opt_out_templates" model="ir.actions.server">
-        <field name="name">Opt-Out Selected Templates for User</field>
-        <field name="model_id" ref="mail.model_mail_template"/>
-        <field name="binding_model_id" ref="mail.model_mail_template"/>
-        <field name="binding_type">action</field>
-        <field name="state">code</field>
-        <field name="code"><![CDATA[
-if records and env.context.get('active_user_id'):
-    user = env['res.users'].browse(env.context['active_user_id'])
-    user.bulk_opt_out_templates(records.ids)
-]]></field>
-    </record>
-
-    <record id="action_my_mail_user_bulk_opt_in_templates" model="ir.actions.server">
-        <field name="name">Opt-In Selected Templates for User</field>
-        <field name="model_id" ref="mail.model_mail_template"/>
-        <field name="binding_model_id" ref="mail.model_mail_template"/>
-        <field name="binding_type">action</field>
-        <field name="state">code</field>
-        <field name="code"><![CDATA[
-if records and env.context.get('active_user_id'):
-    user = env['res.users'].browse(env.context['active_user_id'])
-    user.bulk_opt_in_templates(records.ids)
-]]></field>
     </record>
 </odoo>

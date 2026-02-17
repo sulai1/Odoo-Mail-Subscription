@@ -7,13 +7,12 @@ class MailTemplate(models.Model):
     
     email_notification_type = fields.Selection(
         selection=[
-            ('transactional', 'Transactional (Cannot Opt-Out)'),
-            ('informational', 'Informational (Opt-Out Allowed)'),
-            ('marketing', 'Marketing (Opt-In Required)')
+            ('transactional', 'Transactional'),
+            ('informational', 'Informational'),
+            ('marketing', 'Marketing')
         ],
         default='informational',
         string="Email Notification Type",
-        tracking=True,
         help="Determines subscription behavior: "
              "Transactional - Users cannot opt-out, always sent. "
              "Informational - Users can opt-out. "
@@ -34,6 +33,11 @@ class MailTemplate(models.Model):
         compute='_compute_opted_out_user_count',
         help="Number of users who have opted out of this template"
     )
+
+    is_user_subscribable = fields.Boolean(
+        string="User Subscribable",
+        help="Indicates if users can subscribe/unsubscribe to this template"
+    )
     
     template_group = fields.Selection(
         selection=[
@@ -47,6 +51,12 @@ class MailTemplate(models.Model):
         default='other',
         string="Template Group",
         help="Grouping category for organizing templates in user notification tab"
+    )
+    
+    current_user_subscribed = fields.Boolean(
+        compute='_compute_current_user_subscribed',
+        string="Current User Subscribed",
+        help="Whether the current user is subscribed to this template (not opted out)"
     )
     
     # ========== Constraints ==========
@@ -79,6 +89,23 @@ class MailTemplate(models.Model):
         """Compute the count of opted-out users for this template."""
         for template in self:
             template.opted_out_user_count = len(template.opted_out_user_ids)
+    
+    @api.depends('opted_out_user_ids')
+    def _compute_current_user_subscribed(self):
+        """Check if current user is subscribed (not opted out) to this template."""
+        current_user = self.env.user
+        for template in self:
+            template.current_user_subscribed = current_user not in template.opted_out_user_ids
+    
+    @api.onchange('email_notification_type')
+    def _onchange_email_notification_type(self):
+        """Update is_user_subscribable and reset opt-outs based on email_notification_type.
+        
+        Transactional emails cannot be opted-out, so is_user_subscribable = False.
+        All other types allow user subscription control. When changing notification type,
+        reset all users to opted-in (clear the opt-out list) using bulk operations.
+        """
+        self.is_user_subscribable = self.email_notification_type != 'transactional'
     
     def _is_user_opted_out(self, user):
         """Check if a specific user has opted out of this template.
@@ -264,6 +291,29 @@ class MailTemplate(models.Model):
                 'active_template_id': self.id,
                 'search_default_internal': 1,
             }
+        }
+    
+    def action_toggle_current_user_subscription(self):
+        """Toggle subscription for the current user on this template.
+        
+        Called from user notification tab to subscribe/unsubscribe.
+        
+        Returns:
+            dict: Action to reload the view
+        """
+        self.ensure_one()
+        current_user = self.env.user
+        
+        if current_user in self.opted_out_user_ids:
+            # User is opted out, subscribe them
+            self.with_context(subscription_action_source='user_notification_tab')._bulk_opt_in([current_user.id])
+        else:
+            # User is subscribed, opt them out
+            self.with_context(subscription_action_source='user_notification_tab')._bulk_opt_out([current_user.id])
+        
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'reload',
         }
     
     # ========== Subscription Frequency Methods ==========

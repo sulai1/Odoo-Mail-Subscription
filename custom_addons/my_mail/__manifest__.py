@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 
-
 {
     'name': 'My Mail',
     'version': '0.1',
@@ -34,4 +33,5 @@
     },
     'author': 'Sascha Wernegger',
     'license': 'LGPL-3',
+    'post_init_hook': 'hooks.post_init_hook',
 }

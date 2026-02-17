@@ -12,11 +12,17 @@
             <!-- Add notification type field after Name field -->
             
             <xpath expr="//field[@name='name']" position="after">
-                <field name="email_notification_type" 
-                       widget="radio"
-                       help="Transactional = Always sent to all users, cannot opt-out. Informational = Users can opt-out. Marketing = Future opt-in model."/>
-                <field name="template_group"
-                       help="Organizational group for categorizing templates in user notification tabs"/>
+                <div>
+                    <label string="Kategorie" for="email_notification_type"/>
+                    <field name="email_notification_type" 
+                        widget="radio"
+                        help="Transactional = Always sent to all users, cannot opt-out. Informational = Users can opt-out. Marketing = Future opt-in model."/>
+                </div>
+                <div>
+                    <label string="Gruppe" for="template_group"/>
+                    <field name="template_group"
+                           help="Organizational group for categorizing templates in user notification tabs"/>
+                </div>
             </xpath>
             
             <!-- Add smart button for opted-out users count (informational only) -->

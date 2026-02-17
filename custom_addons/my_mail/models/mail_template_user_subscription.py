@@ -14,13 +14,13 @@ class MailTemplateUserSubscription(models.Model):
     _name = 'mail.template.user.subscription'
     _description = 'Email Template Subscription Preference'
     _table = 'mail_template_user_subscription'
+    _log_access = True
     
     template_id = fields.Many2one(
         'mail.template',
         string='Email Template',
         required=True,
         ondelete='cascade',
-        tracking=True,
         help='The email template this subscription preference applies to'
     )
     
@@ -30,7 +30,6 @@ class MailTemplateUserSubscription(models.Model):
         required=True,
         ondelete='cascade',
         domain=[('share', '=', False)],
-        tracking=True,
         help='Internal user managing this subscription'
     )
     
@@ -44,7 +43,6 @@ class MailTemplateUserSubscription(models.Model):
         default='immediate',
         required=True,
         string='Delivery Frequency',
-        tracking=True,
         help='How often this user receives this template: '
              'Immediate = sent immediately, '
              'Daily = batched into daily digest, '
@@ -54,10 +52,10 @@ class MailTemplateUserSubscription(models.Model):
     
     # ========== Constraints ==========
     
-    _sql_constraints = [
-        ('unique_template_user', 'unique(template_id, user_id)',
-         'Each user can have only one subscription preference per template'),
-    ]
+    _check_unique_subscription = models.Constraint(
+        'UNIQUE(template_id, user_id)',
+        'Each user can have only one subscription preference per template'
+    )
     
     @api.constrains('template_id', 'frequency')
     def _check_frequency_by_template_type(self):
