@@ -5,18 +5,12 @@
         <field name="name">mail.template.user.subscription.list</field>
         <field name="model">mail.template</field>
         <field name="arch" type="xml">
-            <list string="E-Mail-Vorlagen" create="false" edit="false" delete="false" default_group_by="template_group">
+            <list string="E-Mail-Vorlagen" create="false" delete="false" default_group_by="template_group" editable="bottom">
                 <field name="id" string="ID"/>
                 <field name="template_group" column_invisible="1"/>
                 <field name="name" string="Vorlage"/>
                 <field name="email_notification_type" string="Kategorie"/>
-                <field name="current_user_subscribed" string="Abonnement" widget="boolean"/>
-                <button name="action_toggle_current_user_subscription"
-                        string="Abonnement"
-                        type="object"
-                        title="Abonnement umschalten"
-                        icon="fa-toggle-on"
-                        class="btn-link"/>
+                <field name="current_user_subscribed" string="Abonnement" widget="boolean_toggle" options="{'terminology': 'subscribe'}"/>
             </list>
         </field>
     </record>

@@ -57,6 +57,8 @@ class MailTemplate(models.Model):
     
     current_user_subscribed = fields.Boolean(
         compute='_compute_current_user_subscribed',
+        inverse='_inverse_current_user_subscribed',
+        store=True,
         string="Current User Subscribed",
         help="Whether the current user is subscribed to this template (not opted out)"
     )
@@ -99,6 +101,17 @@ class MailTemplate(models.Model):
         for template in self:
             template.current_user_subscribed = current_user not in template.opted_out_user_ids
     
+    def _inverse_current_user_subscribed(self):
+        """Track user toggles and adjust opt-out links accordingly."""
+        user_id = self.env.user.id
+        context = {'subscription_action_source': 'user_side'}
+        for template in self:
+            opted_out = user_id in template.opted_out_user_ids.ids
+            if template.current_user_subscribed and opted_out:
+                template.with_context(**context)._bulk_opt_in([user_id])
+            elif not template.current_user_subscribed and not opted_out:
+                template.with_context(**context)._bulk_opt_out([user_id])
+
     @api.onchange('email_notification_type')
     def _onchange_email_notification_type(self):
         """Update is_user_subscribable and manage subscription records based on type.
