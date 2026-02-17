@@ -165,3 +165,88 @@ class TestMyMailSubscriptionLogic(TransactionCase):
 
         self.assertIn(self.user_regular.id, filtered)
         self.assertNotIn(self.user_optout.id, filtered)
+
+    def test_09_bulk_opt_in_action(self):
+        """Test bulk opt-in via server action (write method)."""
+        # Setup: opt-out user from informational template
+        self.template_subscribable._bulk_opt_out([self.user_regular.id])
+        self.assertIn(self.user_regular, self.template_subscribable.opted_out_user_ids)
+
+        # Simulate server action: bulk opt-in
+        self.template_subscribable.write({'opted_out_user_ids': [(3, self.user_regular.id)]})
+        
+        self.assertNotIn(
+            self.user_regular,
+            self.template_subscribable.opted_out_user_ids,
+            'User should be removed from opted-out after bulk opt-in action.',
+        )
+
+    def test_10_bulk_opt_out_action(self):
+        """Test bulk opt-out via server action (write method)."""
+        # Setup: user is subscribed (not opted out)
+        self.assertNotIn(self.user_regular, self.template_subscribable.opted_out_user_ids)
+
+        # Simulate server action: bulk opt-out
+        self.template_subscribable.write({'opted_out_user_ids': [(4, self.user_regular.id)]})
+        
+        self.assertIn(
+            self.user_regular,
+            self.template_subscribable.opted_out_user_ids,
+            'User should be added to opted-out after bulk opt-out action.',
+        )
+
+    def test_11_reset_informational_template(self):
+        """Test reset action for informational (clears opted-out)."""
+        # Setup: opt-out multiple users
+        self.template_subscribable._bulk_opt_out([self.user_regular.id, self.user_optout.id])
+        self.assertEqual(
+            len(self.template_subscribable.opted_out_user_ids), 2,
+            'Should have 2 opted-out users before reset.'
+        )
+
+        # Simulate reset action for informational
+        if self.template_subscribable.email_notification_type == 'marketing':
+            # Marketing: reset to opt-in model
+            active_users = self.env['res.users'].search([('active', '=', True)])
+            self.template_subscribable.write({'opted_out_user_ids': [(6, 0, active_users.ids)]})
+        else:
+            # Informational: reset to all subscribed
+            self.template_subscribable.write({'opted_out_user_ids': [(5, 0, 0)]})
+
+        self.assertEqual(
+            len(self.template_subscribable.opted_out_user_ids), 0,
+            'Informational template should have no opted-out users after reset.',
+        )
+
+    def test_12_reset_marketing_template(self):
+        """Test reset action for marketing (populates opted-out)."""
+        # Setup: opt-in some users to marketing template
+        self.template_marketing._bulk_opt_in([self.user_regular.id])
+        self.assertNotIn(
+            self.user_regular,
+            self.template_marketing.opted_out_user_ids,
+            'User should be opted-in before reset.',
+        )
+
+        # Simulate reset action for marketing
+        if self.template_marketing.email_notification_type == 'marketing':
+            # Marketing: reset to opt-in model (all users opted out)
+            active_users = self.env['res.users'].search([('active', '=', True)])
+            self.template_marketing.write({'opted_out_user_ids': [(6, 0, active_users.ids)]})
+        else:
+            # Informational: reset to all subscribed
+            self.template_marketing.write({'opted_out_user_ids': [(5, 0, 0)]})
+
+        # Verify all active users are opted out (opt-in model)
+        active_users = self.env['res.users'].search([('active', '=', True)])
+        self.assertEqual(
+            len(self.template_marketing.opted_out_user_ids), len(active_users),
+            f'Marketing template should reset to opt-in with all {len(active_users)} active users opted-out.',
+        )
+
+        for user in active_users:
+            self.assertIn(
+                user,
+                self.template_marketing.opted_out_user_ids,
+                f'User {user.name} should be opted-out after marketing reset.',
+            )

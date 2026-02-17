@@ -5,10 +5,11 @@ Centralized email subscription management for internal users in Odoo 19 Communit
 ## Scope
 
 - Internal users only (`res.users`)
-- Opt-out model (default is subscribed)
+- Opt-out model (default is subscribed, except marketing which defaults to opted-out)
 - Email type categorization (`mail.template.email_notification_type`)
 - Informational templates allow user opt-out
-- Transactional and marketing templates never filter by opt-out (always sent)
+- Marketing templates use opt-in model (users start opted-out, can opt-in)
+- Transactional templates never filter (always sent to all users)
 - User opt-out overrides follower logic for informational templates
 - Audit logging for subscription changes
 

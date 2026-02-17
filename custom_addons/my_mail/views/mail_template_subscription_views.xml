@@ -25,14 +25,14 @@
                 </div>
             </xpath>
             
-            <!-- Add smart button for opted-out users count (informational only) -->
+            <!-- Add smart button for opted-out users count (informational and marketing support user opt-out/opt-in) -->
             <xpath expr="//sheet" position="inside">
                 <div class="oe_button_box" name="button_box">
                 <button name="action_view_opted_out_users" 
                         type="object"
                         class="oe_stat_button"
                         icon="fa-times-circle"
-                        invisible="email_notification_type != 'informational'">
+                        invisible="not email_notification_type or email_notification_type == 'transactional'">
                     <field string="Opted-Out Users" 
                            name="opted_out_user_count" 
                            widget="statinfo"/>
@@ -40,6 +40,47 @@
                 </div>
             </xpath>
         </field>
+    </record>
+    
+    <!-- Multi-row actions for template subscription list -->
+    <record id="action_template_opt_in_selected" model="ir.actions.server">
+        <field name="name">Opt-In Selected</field>
+        <field name="model_id" ref="mail.model_mail_template"/>
+        <field name="binding_model_id" ref="mail.model_mail_template"/>
+        <field name="binding_type">action</field>
+        <field name="state">code</field>
+        <field name="code"><![CDATA[
+for template in records:
+    template._bulk_opt_in([env.user.id])
+]]></field>
+    </record>
+    <record id="action_template_opt_out_selected" model="ir.actions.server">
+        <field name="name">Opt-Out Selected</field>
+        <field name="model_id" ref="mail.model_mail_template"/>
+        <field name="binding_model_id" ref="mail.model_mail_template"/>
+        <field name="binding_type">action</field>
+        <field name="state">code</field>
+        <field name="code"><![CDATA[
+for template in records:
+    template._bulk_opt_out([env.user.id])
+]]></field>
+    </record>
+    <record id="action_template_reset_selected" model="ir.actions.server">
+        <field name="name">Reset Subscription (Selected)</field>
+        <field name="model_id" ref="mail.model_mail_template"/>
+        <field name="binding_model_id" ref="mail.model_mail_template"/>
+        <field name="binding_type">action</field>
+        <field name="state">code</field>
+        <field name="code"><![CDATA[
+for template in records:
+    if template.email_notification_type == 'marketing':
+        # Marketing: reset to opt-in model (all users opted out)
+        active_users = env['res.users'].search([('active', '=', True)])
+        template.write({'opted_out_user_ids': [(6, 0, active_users.ids)]})
+    else:
+        # Informational: reset to all subscribed (clear opted out)
+        template.write({'opted_out_user_ids': [(5, 0, 0)]})
+]]></field>
     </record>
 
     <!-- ============================================ -->

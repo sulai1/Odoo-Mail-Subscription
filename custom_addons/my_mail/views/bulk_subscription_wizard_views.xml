@@ -17,19 +17,34 @@
             </form>
         </field>
     </record>
-
-    <record id="action_my_mail_bulk_subscription_wizard" model="ir.actions.act_window">
-        <field name="name">Bulk Subscription Management</field>
+    
+    <record id="action_my_mail_bulk_opt_out_selection" model="ir.actions.act_window">
+        <field name="name">Bulk Subscription Opt-Out</field>
         <field name="res_model">my.mail.bulk.subscription.wizard</field>
         <field name="view_mode">form</field>
         <field name="target">new</field>
         <field name="view_id" ref="view_my_mail_bulk_subscription_wizard_form"/>
     </record>
 
-    <menuitem id="menu_my_mail_bulk_subscription_wizard"
-              name="Bulk Manage Subscriptions"
+    <record id="action_my_mail_bulk_opt_in_selection" model="ir.actions.act_window">
+        <field name="name">Bulk Subscription Opt-In</field>
+        <field name="res_model">my.mail.bulk.subscription.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="view_id" ref="view_my_mail_bulk_subscription_wizard_form"/>
+    </record>
+
+    <menuitem id="menu_my_mail_bulk_opt_in_selection"
+              name="Opt-In Selection"
               parent="menu_my_mail_root"
-              action="action_my_mail_bulk_subscription_wizard"
+              action="action_my_mail_bulk_opt_in_selection"
+              sequence="20"
+              groups="base.group_system"/>
+
+    <menuitem id="menu_my_mail_bulk_opt_out_selection"
+              name="Opt-Out Selection"
+              parent="menu_my_mail_root"
+              action="action_my_mail_bulk_opt_out_selection"
               sequence="20"
               groups="base.group_system"/>
 

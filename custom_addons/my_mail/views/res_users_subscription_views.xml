@@ -14,7 +14,7 @@
             </list>
         </field>
     </record>
-
+    
     <!-- Action to show subscribable templates for user -->
     <record id="action_user_subscribable_templates" model="ir.actions.act_window">
         <field name="name">Meine E-Mail-Abonnements</field>
