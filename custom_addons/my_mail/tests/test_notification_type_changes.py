@@ -81,10 +81,20 @@ class TestMailTemplateNotificationTypeChanges(TransactionCase):
         )
 
     def test_06_change_from_marketing_to_transactional(self):
-        """Changing from marketing to transactional should update is_user_subscribable."""
+        """Changing from marketing to transactional clears opted-out users first."""
         self.template.email_notification_type = 'marketing'
         self.template._onchange_email_notification_type()
         self.assertTrue(self.template.is_user_subscribable)
+        
+        # Marketing templates have all users opted-out by default
+        self.assertGreater(
+            len(self.template.opted_out_user_ids),
+            0,
+            'Marketing template should have opted-out users by default'
+        )
+        
+        # Clear opted-out users before changing to transactional (constraint requirement)
+        self.template.opted_out_user_ids = [(5, 0, 0)]
         
         # Now change to transactional
         self.template.email_notification_type = 'transactional'
@@ -113,75 +123,69 @@ class TestMailTemplateNotificationTypeChanges(TransactionCase):
         
         self.assertIn('cannot opt-out', str(exc_context.exception).lower())
 
-    def test_08_marketing_cannot_have_opted_out_users(self):
-        """Marketing templates cannot have opted-out users (constraint enforced)."""
+    def test_08_marketing_templates_default_users_as_opted_out(self):
+        """Marketing templates use opt-in model: all users start opted-out."""
         test_user = self.env['res.users'].create({
             'name': 'Test User 2',
             'login': 'test_user_marketing',
             'email': 'test2@example.com',
         })
         
-        self.template.email_notification_type = 'informational'
-        self.template._bulk_opt_out([test_user.id])
+        # Change to marketing - populates opted-out users automatically
+        self.template.email_notification_type = 'marketing'
         
-        # Now try to change to marketing - constraint should fail
-        with self.assertRaises(ValidationError) as exc_context:
-            self.template.email_notification_type = 'marketing'
-        
-        self.assertIn('marketing', str(exc_context.exception).lower())
+        # Verify new user is opted-out (marketing opt-in model)
+        self.assertIn(
+            test_user,
+            self.template.opted_out_user_ids,
+            'New user should be opted-out for marketing template (opt-in model)'
+        )
 
-    def test_09_changing_to_marketing_creates_subscription_records(self):
-        """Changing to marketing should create subscription records for all users."""
-        # Get count of internal users
+    def test_09_changing_to_marketing_populates_opted_out_users(self):
+        """Changing to marketing should opt-out all existing users (opt-in model)."""
+        # Get count of internal users before change
         all_users = self.env['res.users'].search([('share', '=', False)])
+        
+        # Clear any existing opted-out users from previous tests
+        self.template.opted_out_user_ids = [(5, 0, 0)]
         
         # Change template to marketing
         self.template.email_notification_type = 'marketing'
         
-        # Verify subscription records were created
-        Subscription = self.env['mail.template.user.subscription']
-        subscriptions = Subscription.search([
-            ('template_id', '=', self.template.id)
-        ])
-        
+        # Verify all users are opted-out (opt-in model)
+        opted_out_ids = self.template.opted_out_user_ids
         self.assertEqual(
-            len(subscriptions), len(all_users),
-            f'Should have {len(all_users)} subscription records after changing to marketing'
+            len(opted_out_ids), len(all_users),
+            f'Should have opted-out {len(all_users)} users after changing to marketing'
         )
         
-        # Verify all subscriptions have frequency='off' (not subscribed by default)
-        for sub in subscriptions:
-            self.assertEqual(
-                sub.frequency, 'off',
-                'Marketing template subscriptions should default to "off" (opt-in model)'
+        # Verify all users in opted-out list
+        for user in all_users:
+            self.assertIn(
+                user,
+                opted_out_ids,
+                f'User {user.name} should be opted-out for marketing template (opt-in model)'
             )
 
-    def test_10_changing_from_marketing_deletes_subscription_records(self):
-        """Changing away from marketing should delete subscription records."""
-        # First, change to marketing to create subscription records
+    def test_10_changing_from_marketing_clears_opted_out_users(self):
+        """Changing away from marketing should clear opted-out users."""
+        # First, change to marketing to populate opted-out users
         self.template.email_notification_type = 'marketing'
         
-        Subscription = self.env['mail.template.user.subscription']
-        subscriptions_before = Subscription.search([
-            ('template_id', '=', self.template.id)
-        ])
-        
+        opted_out_before = len(self.template.opted_out_user_ids)
         self.assertGreater(
-            len(subscriptions_before), 0,
-            'Should have subscription records after changing to marketing'
+            opted_out_before, 0,
+            'Should have opted-out users after changing to marketing'
         )
         
         # Now change to informational
         self.template.email_notification_type = 'informational'
         
-        # Verify all subscription records were deleted
-        subscriptions_after = Subscription.search([
-            ('template_id', '=', self.template.id)
-        ])
-        
+        # Verify all opted-out users were cleared
+        opted_out_after = len(self.template.opted_out_user_ids)
         self.assertEqual(
-            len(subscriptions_after), 0,
-            'Should have no subscription records after changing away from marketing'
+            opted_out_after, 0,
+            'Should have no opted-out users after changing away from marketing'
         )
 
     def test_11_new_users_get_subscriptions_for_marketing_templates(self):
